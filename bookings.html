@@ -1,0 +1,329 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Tripit Pakistan – Bookings & Profit Tracker</title>
+  <style>
+   :root { --gap: 10px; --radius: 10px; --bg: #121212; --card: #1e1e1e; --text: #e0e0e0; --muted: #888; --accent: #0a7; --error: #c00; --border: #333; }
+body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 20px; background: var(--bg); color: var(--text); }
+h1, h2, h3 { color: var(--text); }
+section { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; margin-bottom: 18px; }
+label { display:block; font-weight: 600; margin-top: 8px; }
+input, select, textarea, button { padding: 8px; border-radius: 8px; border: 1px solid var(--border); width: 100%; box-sizing: border-box; background: #222; color: var(--text); }
+input::placeholder, textarea::placeholder { color: var(--muted); }
+button { background: var(--accent); color: #fff; border: none; cursor: pointer; }
+button:hover { background: #099169; }
+.row { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: var(--gap); }
+.actions { display:flex; gap: var(--gap); flex-wrap: wrap; margin-top: 12px; }
+table { width: 100%; border-collapse: collapse; margin-top: 12px; background: var(--card); }
+th, td { border: 1px solid var(--border); padding: 8px; text-align: left; }
+th { background: #222; color: var(--text); }
+.muted { color: var(--muted); }
+.ok { color: var(--accent); font-weight: 600; }
+.err { color: var(--error); font-weight: 600; }
+.inline { display:inline-block; width:auto; }
+.hidden { display: none; }
+.modal { position: fixed; inset: 0; background: rgba(0,0,0,0.7); display:none; align-items:center; justify-content:center; }
+.modal .box { background: var(--card); padding: 16px; width: min(520px, 90vw); border-radius: var(--radius); color: var(--text); }
+.box h3 { margin-top: 0; }
+  </style>
+</head>
+<body>
+  <h1>Tripit Pakistan – Bookings & Profit Tracker</h1>
+
+  <section id="add-booking">
+    <h2>Add Booking</h2>
+    <div class="row">
+      <div>
+        <label>Date</label>
+        <input type="date" id="bk-date" required />
+      </div>
+      <div>
+        <label>Client Name</label>
+        <input type="text" id="bk-name" required />
+      </div>
+      <div>
+        <label>Contact Number</label>
+        <input type="text" id="bk-contact" required />
+      </div>
+      <div>
+        <label>CNIC (Optional)</label>
+        <input type="text" id="bk-cnic" />
+      </div>
+      <div>
+        <label>Adults</label>
+        <select id="bk-adults"></select>
+      </div>
+      <div>
+        <label>Kids</label>
+        <select id="bk-kids"></select>
+      </div>
+      <div>
+        <label>Category</label>
+        <select id="bk-category">
+          <option value="Family">Family</option>
+          <option value="Couple">Couple</option>
+          <option value="Boys">Boys</option>
+        </select>
+      </div>
+      <div>
+        <label>Trip</label>
+        <input type="text" id="bk-trip" placeholder="Kashmir, Hunza, etc." required />
+      </div>
+      <div>
+        <label>Total Paid Amount (PKR)</label>
+        <input type="number" id="bk-paid" step="0.01" value="0" required />
+      </div>
+      <div>
+        <label>Total B2B Amount (PKR)</label>
+        <input type="number" id="bk-b2b" step="0.01" value="0" required />
+      </div>
+      <div>
+        <label>Total Remaining Amount (PKR)</label>
+        <input type="number" id="bk-remaining" step="0.01" value="0" required />
+      </div>
+      <div>
+        <label>Notes</label>
+        <textarea id="bk-notes" rows="1" placeholder="Optional notes"></textarea>
+      </div>
+    </div>
+    <div class="actions">
+      <button id="btn-save-booking" class="inline">Save Booking</button>
+      <div id="msg-booking" class="muted"></div>
+    </div>
+  </section>
+
+  <section id="add-expense">
+    <h2>Add Expense</h2>
+    <div class="row">
+      <div>
+        <label>Expense</label>
+        <input type="text" id="ex-title" placeholder="e.g., Fuel, Hotel advance" required />
+      </div>
+      <div>
+        <label>Amount (PKR)</label>
+        <input type="number" id="ex-amount" step="0.01" value="0" required />
+      </div>
+    </div>
+    <div class="actions">
+      <button id="btn-save-expense" class="inline">Add Expense</button>
+      <div id="msg-expense" class="muted"></div>
+    </div>
+  </section>
+
+  <section id="show-all">
+    <h2>Show All Bookings (sorted by date)</h2>
+    <div class="row">
+      <div>
+        <label>Password (to reveal B2B, Remaining, Profit, Contact, CNIC)</label>
+        <input type="password" id="pw" placeholder="Enter admin password" />
+      </div>
+    </div>
+    <div class="actions">
+      <button id="btn-load">Show Bookings</button>
+      <button id="btn-unlock">Unlock Sensitive Fields</button>
+      <div id="msg-list" class="muted"></div>
+    </div>
+    <div style="overflow:auto">
+      <table id="tbl">
+        <thead></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="profits">
+    <h2>Monthly Profit vs. Expense</h2>
+    <div class="actions">
+      <button id="btn-check-profits">Check Profits</button>
+    </div>
+  </section>
+
+  <!-- Modal for Profit Check -->
+  <div class="modal" id="modal">
+    <div class="box">
+      <h3>Check Profits</h3>
+      <div class="row">
+        <div>
+          <label>Month</label>
+          <select id="m-month"></select>
+        </div>
+        <div>
+          <label>Year</label>
+          <input type="number" id="m-year" value="2025" />
+        </div>
+        <div>
+          <label>Password</label>
+          <input type="password" id="m-pw" placeholder="Admin password" />
+        </div>
+      </div>
+      <div class="actions">
+        <button id="btn-run-summary">Run</button>
+        <button id="btn-close">Close</button>
+        <div id="msg-summary" class="muted"></div>
+      </div>
+      <div id="summary-out"></div>
+    </div>
+  </div>
+
+<script>
+  // ==== CONFIG ====
+  const API_BASE = 'https://script.google.com/macros/s/AKfycbymUIk_M4KZTRqcGvFMdN_rfljKi3hiduwA7sC8wKAhjeEek1hNl-Si4GJyt33C9DA7/exec'; 
+  let memorizedPassword = 'YOUR_ADMIN_PASSWORD_OPTIONAL_DEFAULT'; // or '' to always type
+
+  // ==== HELPERS ====
+  function $(id){ return document.getElementById(id); }
+  function num(v){ const n = parseFloat(v); return isNaN(n) ? 0 : n; }
+  function toast(el, msg, ok=true){ el.className = ok ? 'ok' : 'err'; el.textContent = msg; setTimeout(()=>{ el.className='muted'; }, 3000); }
+  function fmtPKR(n){ return new Intl.NumberFormat('en-PK', { style:'currency', currency:'PKR', maximumFractionDigits:0 }).format(n); }
+
+  function fillSelectNums(selId, max=20){
+    const el = $(selId); el.innerHTML='';
+    for (let i=0;i<=max;i++){
+      const o = document.createElement('option'); o.value=i; o.textContent = i; el.appendChild(o);
+    }
+  }
+  function fillMonths(selId){
+    const names = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const el = $(selId); names.forEach((n,i)=>{ const o=document.createElement('option'); o.value=i+1; o.textContent=n; el.appendChild(o); });
+    const now = new Date(); el.value = now.getMonth()+1;
+  }
+
+  // ==== INIT ====
+  fillSelectNums('bk-adults', 20);
+  fillSelectNums('bk-kids', 20);
+  fillMonths('m-month');
+
+  // ==== ADD BOOKING ====
+  $('btn-save-booking').addEventListener('click', async ()=>{
+    const payload = {
+      date: $('bk-date').value,
+      clientName: $('bk-name').value,
+      contact: $('bk-contact').value,
+      cnic: $('bk-cnic').value,
+      adults: $('bk-adults').value,
+      kids: $('bk-kids').value,
+      category: $('bk-category').value,
+      trip: $('bk-trip').value,
+      totalPaid: num($('bk-paid').value),
+      b2b: num($('bk-b2b').value),
+      remaining: num($('bk-remaining').value),
+      notes: $('bk-notes').value
+    };
+    if (!payload.date || !payload.clientName || !payload.contact || !payload.trip){
+      toast($('msg-booking'), 'Please fill Date, Client Name, Contact, and Trip.', false); return;
+    }
+    try {
+      const res = await fetch(API_BASE, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action:'addBooking', payload })
+      });
+      const json = await res.json();
+      if (json.ok){ toast($('msg-booking'), 'Booking saved.'); }
+      else { toast($('msg-booking'), json.error||'Error', false); }
+    } catch(err){ toast($('msg-booking'), err.message||String(err), false); }
+  });
+
+  // ==== ADD EXPENSE ====
+  $('btn-save-expense').addEventListener('click', async ()=>{
+    const payload = { expense: $('ex-title').value, amount: num($('ex-amount').value) };
+    if (!payload.expense){ toast($('msg-expense'), 'Enter an expense name.', false); return; }
+    try {
+      const res = await fetch(API_BASE, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action:'addExpense', payload })
+      });
+      const json = await res.json();
+      if (json.ok){ toast($('msg-expense'), 'Expense saved.'); }
+      else { toast($('msg-expense'), json.error||'Error', false); }
+    } catch(err){ toast($('msg-expense'), err.message||String(err), false); }
+  });
+
+  // ==== TABLE RENDER ====
+  function renderTable(items){
+    const thead = $('tbl').querySelector('thead');
+    const tbody = $('tbl').querySelector('tbody');
+    thead.innerHTML = '';
+    tbody.innerHTML = '';
+
+    if (!items || !items.length){
+      thead.innerHTML = '<tr><th>No data</th></tr>';
+      return;
+    }
+
+    const cols = Object.keys(items[0]);
+    const trh = document.createElement('tr');
+    cols.forEach(c=>{ const th=document.createElement('th'); th.textContent=c; trh.appendChild(th); });
+    thead.appendChild(trh);
+
+    items.forEach(r=>{
+      const tr=document.createElement('tr');
+      cols.forEach(c=>{
+        const td=document.createElement('td');
+        const v=r[c];
+        if (['totalPaid','b2b','remaining','profit'].includes(c) && typeof v==='number') td.textContent = fmtPKR(v);
+        else td.textContent = v;
+        tr.appendChild(td);
+      });
+      tbody.appendChild(tr);
+    });
+  }
+
+  // ==== LIST (MASKED) ====
+  $('btn-load').addEventListener('click', async ()=>{
+    try {
+      const res = await fetch(`${API_BASE}?action=listbookings`);
+      const json = await res.json();
+      if (json.ok){ renderTable(json.items); $('msg-list').textContent = json.authorized? 'Authorized' : 'Showing masked data'; }
+      else { toast($('msg-list'), json.error||'Error', false); }
+    } catch(err){ toast($('msg-list'), err.message||String(err), false); }
+  });
+
+  // ==== LIST (UNLOCK SENSITIVE) ====
+  $('btn-unlock').addEventListener('click', async ()=>{
+    const pw = $('pw').value || memorizedPassword || '';
+    if (!pw){ toast($('msg-list'), 'Enter password first.', false); return; }
+    try {
+      const url = `${API_BASE}?action=listbookingsfull&password=${encodeURIComponent(pw)}`;
+      const res = await fetch(url);
+      const json = await res.json();
+      if (json.ok && json.authorized){
+        renderTable(json.items);
+        memorizedPassword = pw; // remember during session
+        toast($('msg-list'), 'Unlocked.');
+      } else {
+        toast($('msg-list'), (json.error||'Invalid password'), false);
+      }
+    } catch(err){ toast($('msg-list'), err.message||String(err), false); }
+  });
+
+  // ==== PROFITS MODAL ====
+  $('btn-check-profits').addEventListener('click', ()=>{ $('modal').style.display='flex'; $('m-year').value = 2025; $('summary-out').innerHTML=''; $('msg-summary').textContent=''; });
+  $('btn-close').addEventListener('click', ()=>{ $('modal').style.display='none'; });
+  $('btn-run-summary').addEventListener('click', async ()=>{
+    const m = parseInt($('m-month').value,10);
+    const y = parseInt($('m-year').value,10);
+    const pw = $('m-pw').value || memorizedPassword || '';
+    if (!pw){ toast($('msg-summary'), 'Password required to view profit.', false); return; }
+    try {
+      const url = `${API_BASE}?action=monthsummary&month=${m}&year=${y}&password=${encodeURIComponent(pw)}`;
+      const res = await fetch(url);
+      const json = await res.json();
+      if (json.ok){
+        const { profit, expenses, net } = json.totals;
+        $('summary-out').innerHTML = `
+          <p><strong>Month:</strong> ${m} / <strong>Year:</strong> ${y}</p>
+          <p><strong>Total Profit Margins:</strong> ${fmtPKR(profit)}</p>
+          <p><strong>Total Expenses:</strong> ${fmtPKR(expenses)}</p>
+          <p><strong>Net:</strong> ${fmtPKR(net)}</p>
+        `;
+        toast($('msg-summary'), 'Done.');
+      } else {
+        toast($('msg-summary'), json.error||'Error', false);
+      }
+    } catch(err){ toast($('msg-summary'), err.message||String(err), false); }
+  });
+</script>
+</body>
+</html>
